@@ -1,4 +1,5 @@
 require 'kramdown'
+require 'pry'
 
 module Grape
   class API
@@ -40,7 +41,7 @@ module Grape
               :target_class => nil,
               :mount_path => '/swagger_doc',
               :base_path => nil,
-              :api_version => '0.1',
+              :api_version => nil,
               :markdown => false,
               :hide_documentation_path => false
             }
@@ -84,6 +85,7 @@ module Grape
               header['Access-Control-Allow-Origin'] = '*'
               header['Access-Control-Request-Method'] = '*'
               routes = @@target_class::combined_routes[params[:name]]
+              routes.select!{|r| r.route_version == options[:api_version] } if options[:api_version]
               routes_array = routes.map do |route|
                 notes = route.route_notes && @@markdown ? Kramdown::Document.new(route.route_notes.strip_heredoc).to_html : route.route_notes
                 {

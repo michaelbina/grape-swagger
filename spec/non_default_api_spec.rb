@@ -22,12 +22,12 @@ describe "options: " do
 
     it "retrieves the given base-path on /swagger_doc" do
       get '/swagger_doc'
-      last_response.body.should == "{:apiVersion=>\"0.1\", :swaggerVersion=>\"1.1\", :basePath=>\"#{SimpleApiWithBasePath::NON_DEFAULT_BASE_PATH}\", :operations=>[], :apis=>[{:path=>\"/swagger_doc/something.{format}\"}, {:path=>\"/swagger_doc/swagger_doc.{format}\"}]}"
+      last_response.body.should == "{:apiVersion=>nil, :swaggerVersion=>\"1.1\", :basePath=>\"#{SimpleApiWithBasePath::NON_DEFAULT_BASE_PATH}\", :operations=>[], :apis=>[{:path=>\"/swagger_doc/something.{format}\"}, {:path=>\"/swagger_doc/swagger_doc.{format}\"}]}"
     end
 
     it "retrieves the same given base-path for mounted-api" do
       get '/swagger_doc/something'
-      last_response.body.should == "{:apiVersion=>\"0.1\", :swaggerVersion=>\"1.1\", :basePath=>\"#{SimpleApiWithBasePath::NON_DEFAULT_BASE_PATH}\", :resourcePath=>\"\", :apis=>[{:path=>\"/something.{format}\", :operations=>[{:notes=>nil, :summary=>\"this gets something\", :nickname=>\"GET-something---format-\", :httpMethod=>\"GET\", :parameters=>[]}]}]}"
+      last_response.body.should == "{:apiVersion=>nil, :swaggerVersion=>\"1.1\", :basePath=>\"#{SimpleApiWithBasePath::NON_DEFAULT_BASE_PATH}\", :resourcePath=>\"\", :apis=>[{:path=>\"/something.{format}\", :operations=>[{:notes=>nil, :summary=>\"this gets something\", :nickname=>\"GET-something---format-\", :httpMethod=>\"GET\", :parameters=>[]}]}]}"
     end
   end
 
@@ -57,7 +57,7 @@ describe "options: " do
 
     it "retrieves the same api version for mounted-api" do
       get '/swagger_doc/something'
-      last_response.body.should == "{:apiVersion=>\"#{SimpleApiWithApiVersion::API_VERSION}\", :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :resourcePath=>\"\", :apis=>[{:path=>\"/something.{format}\", :operations=>[{:notes=>nil, :summary=>\"this gets something\", :nickname=>\"GET-something---format-\", :httpMethod=>\"GET\", :parameters=>[]}]}]}"
+      last_response.body.should == "{:apiVersion=>\"#{SimpleApiWithApiVersion::API_VERSION}\", :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :resourcePath=>\"\", :apis=>[]}"
     end
   end
 
@@ -80,7 +80,7 @@ describe "options: " do
 
     it "it doesn't show the documentation path on /swagger_doc" do
       get '/swagger_doc'
-      last_response.body.should == "{:apiVersion=>\"0.1\", :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :operations=>[], :apis=>[{:path=>\"/swagger_doc/something.{format}\"}]}" 
+      last_response.body.should == "{:apiVersion=>nil, :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :operations=>[], :apis=>[{:path=>\"/swagger_doc/something.{format}\"}]}" 
     end
   end
 
@@ -105,12 +105,12 @@ describe "options: " do
 
     it "retrieves the given base-path on /api_doc" do
       get '/api_doc'
-      last_response.body.should == "{:apiVersion=>\"0.1\", :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :operations=>[], :apis=>[{:path=>\"/api_doc/something.{format}\"}, {:path=>\"/api_doc/api_doc.{format}\"}]}"
+      last_response.body.should == "{:apiVersion=>nil, :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :operations=>[], :apis=>[{:path=>\"/api_doc/something.{format}\"}, {:path=>\"/api_doc/api_doc.{format}\"}]}"
     end
 
     it "retrieves the same given base-path for mounted-api" do
       get '/api_doc/something'
-      last_response.body.should == "{:apiVersion=>\"0.1\", :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :resourcePath=>\"\", :apis=>[{:path=>\"/something.{format}\", :operations=>[{:notes=>nil, :summary=>\"this gets something\", :nickname=>\"GET-something---format-\", :httpMethod=>\"GET\", :parameters=>[]}]}]}"
+      last_response.body.should == "{:apiVersion=>nil, :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :resourcePath=>\"\", :apis=>[{:path=>\"/something.{format}\", :operations=>[{:notes=>nil, :summary=>\"this gets something\", :nickname=>\"GET-something---format-\", :httpMethod=>\"GET\", :parameters=>[]}]}]}"
     end
 
     it "does not respond to swagger_doc" do
@@ -140,7 +140,7 @@ describe "options: " do
 
     it "parses markdown for a mounted-api" do
       get '/swagger_doc/something'
-      last_response.body.should == "{:apiVersion=>\"0.1\", :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :resourcePath=>\"\", :apis=>[{:path=>\"/something.{format}\", :operations=>[{:notes=>\"<p><em>test</em></p>\\n\", :summary=>\"this gets something\", :nickname=>\"GET-something---format-\", :httpMethod=>\"GET\", :parameters=>[]}]}]}"
+      last_response.body.should == "{:apiVersion=>nil, :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :resourcePath=>\"\", :apis=>[{:path=>\"/something.{format}\", :operations=>[{:notes=>\"<p><em>test</em></p>\\n\", :summary=>\"this gets something\", :nickname=>\"GET-something---format-\", :httpMethod=>\"GET\", :parameters=>[]}]}]}"
     end
   end
   
@@ -155,16 +155,27 @@ describe "options: " do
           {:bla => 'something'}
         end
       end
+      
+      class VersionedMountedApiV2 < Grape::API
+        prefix 'api'
+        version 'v2'
+  
+        desc 'this gets something else'
+        get '/something_else' do
+          {:bla => 'something else'}
+        end
+      end
   
       class SimpleApiWithVersion < Grape::API
         mount VersionedMountedApi
+        mount VersionedMountedApiV2
         add_swagger_documentation :api_version => "v1"
       end
     end
   
     def app; SimpleApiWithVersion end
   
-    it "parses version and places it in the path" do
+    it "only includes routes for the selected api version" do
       get '/swagger_doc/api'
       last_response.body.should == "{:apiVersion=>\"v1\", :swaggerVersion=>\"1.1\", :basePath=>\"http://example.org\", :resourcePath=>\"\", :apis=>[{:path=>\"/api/v1/something.{format}\", :operations=>[{:notes=>nil, :summary=>\"this gets something\", :nickname=>\"GET-api--version-something---format-\", :httpMethod=>\"GET\", :parameters=>[]}]}]}"
     end
